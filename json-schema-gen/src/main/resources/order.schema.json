@@ -1,0 +1,63 @@
+{
+  "$schema" : "http://json-schema.org/draft-07/schema#",
+  "type" : "object",
+  "properties" : {
+    "customer" : {
+      "type" : "object",
+      "properties" : {
+        "addressList" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "properties" : {
+              "postalCode" : {
+                "type" : "string"
+              },
+              "province" : {
+                "type" : "string"
+              },
+              "street" : {
+                "type" : "string"
+              },
+              "unitNumber" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "firstName" : {
+          "type" : "string"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "lastName" : {
+          "type" : "string"
+        }
+      }
+    },
+    "deliveryDate" : {
+      "type" : "string"
+    },
+    "id" : {
+      "type" : "string"
+    },
+    "itemList" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "properties" : {
+          "sku" : {
+            "type" : "string"
+          },
+          "unitPrice" : {
+            "type" : "number"
+          }
+        }
+      }
+    },
+    "orderDate" : {
+      "type" : "string"
+    }
+  }
+}

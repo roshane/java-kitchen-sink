@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.aeon.restrictionpoc.mappers.AddressRestrictionMapper">
+
+    <resultMap id="addressRestrictionResultMap" type="com.aeon.restrictionpoc.domain.AddressRestriction">
+        <id property="id" column="id"/>
+        <result property="postcode" column="postcode"/>
+        <result property="from" column="from"/>
+        <result property="to" column="to"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyColumn="id">
+        INSERT INTO address_restriction (id, postcode, from, to, created_at)
+        VALUES
+        (#{id}, #{postcode}, #{from}, #{to}, #{created_at})
+    </insert>
+
+    <select id="findAll" resultMap="addressRestrictionResultMap">
+        SELECT * FROM address_restriction
+    </select>
+
+<!--    <select id="findById" resultMap="addressRestrictionResultMap">-->
+<!--        SELECT * FROM address_restriction-->
+<!--        WHERE id = #{id}-->
+<!--    </select>-->
+</mapper>
