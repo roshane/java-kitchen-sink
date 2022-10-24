@@ -5,18 +5,11 @@ spring:
 mongo:
   application-name: ${spring.application.name}
   collection-name: "features"
-  instances:
-    - localhost:27017
+  connection-string: mongodb://localhost:27017/
 
 database:
   name: "commons_togglz"
   table: "features"
-
-core:
-  features:
-    - "com.commons.togglz.feature.NissanFeatures"
-    - "com.commons.togglz.feature.TestFeature"
-    - "com.commons.togglz.feature.ToyotaFeatures"
 
 togglz:
   enabled: true

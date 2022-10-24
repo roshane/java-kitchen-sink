@@ -1,7 +1,8 @@
 package com.commons.togglz.config;
 
+import com.commons.togglz.feature.IFeatureProvider;
+import com.mongodb.ConnectionString;
 import com.mongodb.MongoClientSettings;
-import com.mongodb.ServerAddress;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import org.slf4j.Logger;
@@ -17,38 +18,32 @@ import org.togglz.core.spi.FeatureProvider;
 import org.togglz.mongodb.MongoStateRepository;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.ServiceLoader;
 import java.util.stream.Collectors;
 
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties({MongoDBConfig.class, CoreConfig.class})
+@EnableConfigurationProperties({MongoDBConfig.class})
 public class AppConfig {
     @Value("${database.name}")
     private String databaseName;
 
     @Value("${database.table}")
     private String collectionName;
-    private final CoreConfig coreConfig;
-
     private final MongoDBConfig mongoDBConfig;
 
     private static final Logger logger = LoggerFactory.getLogger(AppConfig.class);
 
-    public AppConfig(MongoDBConfig mongoDBConfig, CoreConfig coreConfig) {
+    public AppConfig(MongoDBConfig mongoDBConfig) {
         this.mongoDBConfig = mongoDBConfig;
-        this.coreConfig = coreConfig;
     }
 
     @Bean
     public FeatureProvider featureProvider() {
-        coreConfig.features.forEach(fqn -> logger.info("Enabling feature for: {}", fqn));
         final EnumBasedFeatureProvider provider = new EnumBasedFeatureProvider();
-        coreConfig.features
-                .stream()
-                .map(this::findClazzByFqn)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .forEach(provider::addFeatureEnum);
+        loadFeatures().forEach(f -> {
+            logger.info("Enabling feature: {}", f.getName());
+            provider.addFeatureEnum(f);
+        });
         return provider;
     }
 
@@ -62,26 +57,18 @@ public class AppConfig {
     private MongoClient mongoClient() {
         final MongoClientSettings clientSettings = MongoClientSettings.builder()
                 .applicationName(mongoDBConfig.applicationName)
-                .applyToClusterSettings(cs -> {
-                    final List<ServerAddress> serverAddressList = mongoDBConfig.instances
-                            .stream()
-                            .map(hp -> {
-                                final String[] hostAndPort = hp.split(":");
-                                return new ServerAddress(hostAndPort[0], Integer.parseInt(hostAndPort[1]));
-                            }).collect(Collectors.toList());
-                    cs.hosts(serverAddressList);
-                })
+                .applyToClusterSettings(cs -> cs.applyConnectionString(new ConnectionString(mongoDBConfig.connectionString)))
                 .build();
         return MongoClients.create(clientSettings);
     }
 
-    private Optional<Class<? extends Feature>> findClazzByFqn(String fqn) {
-        try {
-            return Optional.of((Class<? extends Feature>) Class.forName(fqn));
-        } catch (Exception ex) {
-            logger.error("Error activating feature class: " + fqn, ex);
-        }
-        return Optional.empty();
+    private List<Class<? extends Feature>> loadFeatures() {
+        ServiceLoader<IFeatureProvider> featureProviders = ServiceLoader.load(IFeatureProvider.class);
+        return featureProviders
+                .stream()
+                .map(ServiceLoader.Provider::get)
+                .flatMap(fp -> fp.features().stream())
+                .collect(Collectors.toList());
     }
 
 }
