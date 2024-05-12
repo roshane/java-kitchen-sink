@@ -1,9 +1,8 @@
 package com.aeon.restrictionpoc.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import org.springframework.context.annotation.Configuration;
-
-import javax.annotation.PostConstruct;
 
 @Configuration
 public class WebConfig {
