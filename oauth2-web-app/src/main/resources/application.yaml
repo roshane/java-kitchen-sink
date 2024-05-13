@@ -7,7 +7,7 @@ spring:
         registration:
           local:
             client-id: 1078677407703-gcee2fcd1toj2vd89ao4ci8q5qf9m160.apps.googleusercontent.com
-            client-secret: xqqJxsBsn4RTQOx08c6szcCg
+            client-secret: xxx
             client-authentication-method: client_secret_jwt
             authorization-grant-type: client_credentials
         provider:
