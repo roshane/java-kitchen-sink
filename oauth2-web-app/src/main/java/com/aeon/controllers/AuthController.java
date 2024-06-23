@@ -35,7 +35,8 @@ public class AuthController {
 
     public AuthController(ClientRegistrationRepository repository,
                           OAuth2AuthorizedClientService clientService,
-                          WebClient webClient, OAuth2AuthorizedClientManager oAuth2AuthorizedClientManager) {
+                          WebClient webClient,
+                          OAuth2AuthorizedClientManager oAuth2AuthorizedClientManager) {
         this.webClient = webClient;
         this.repository = repository;
         this.clientService = clientService;
@@ -45,7 +46,7 @@ public class AuthController {
     @GetMapping("/")
     public Map<String, Object> echo(@RegisteredOAuth2AuthorizedClient(OAUTH_2_CLIENT) OAuth2AuthorizedClient authorizedClient) {
         final Map<String,Object> wiremockResponse = webClient.get()
-                .uri("https://dummyjson.com/todos/1")
+                .uri("https://httpbin.org/get")
                 .attributes(oauth2AuthorizedClient(authorizedClient))
                 .retrieve()
                 .bodyToMono(Map.class)
@@ -53,7 +54,6 @@ public class AuthController {
         Objects.requireNonNull(authorizedClient, String.format("no authorized client found for %s", OAUTH_2_CLIENT));
         return Map.of(
                 "greetings", "hello there how are you????",
-                "tokenResponse", authorizedClient.getAccessToken(),
                 "wiremockResponse", wiremockResponse
         );
     }

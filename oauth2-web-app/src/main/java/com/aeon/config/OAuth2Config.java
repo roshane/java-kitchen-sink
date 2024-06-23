@@ -33,14 +33,10 @@ public class OAuth2Config {
     }
 
     @Bean
-    WebClient webClient(ClientRegistrationRepository clientRegistrationRepository,
-                        OAuth2AuthorizedClientRepository authorizedClientRepository) {
-        var manager = new DefaultOAuth2AuthorizedClientManager(clientRegistrationRepository,
-                authorizedClientRepository);
-        ServletOAuth2AuthorizedClientExchangeFilterFunction oauth2Client =
-                new ServletOAuth2AuthorizedClientExchangeFilterFunction(manager);
+    WebClient webClient(OAuth2AuthorizedClientManager clientManager) {
+        var filter = new ServletOAuth2AuthorizedClientExchangeFilterFunction(clientManager);
         return WebClient.builder()
-                .apply(oauth2Client.oauth2Configuration())
+                .apply(filter.oauth2Configuration())
                 .build();
     }
 
