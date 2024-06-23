@@ -1,3 +1,5 @@
+server:
+  port: 9090
 spring:
   application:
     name: oauth2-web
@@ -5,17 +7,16 @@ spring:
     oauth2:
       client:
         registration:
-          local:
-            client-id: 1078677407703-gcee2fcd1toj2vd89ao4ci8q5qf9m160.apps.googleusercontent.com
-            client-secret: xqqJxsBsn4RTQOx08c6szcCg
-            client-authentication-method: client_secret_jwt
+          keycloak:
+            client-id: spring-client
+            client-secret: 0hDZjbiqA9wSmXmWIr7wn95dT1GbyihW
+            client-authentication-method: client_secret_post
             authorization-grant-type: client_credentials
         provider:
-          local:
-#            token-uri: https://www.googleapis.com/oauth2/v4/token
-            token-uri: http://localhost:9090/oauth2/v4/token
+          keycloak:
+            token-uri: http://localhost:8080/realms/master/protocol/openid-connect/token
 
 logging:
   level:
     root: info
-    org.springframework.security: debug
+    org.springframework: info

@@ -3,7 +3,9 @@ package com.aeon.controllers;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
+import org.springframework.security.oauth2.client.OAuth2AuthorizeRequest;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.annotation.RegisteredOAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
@@ -28,23 +30,27 @@ public class AuthController {
     private final ClientRegistrationRepository repository;
     private final OAuth2AuthorizedClientService clientService;
     private final WebClient webClient;
+    private final OAuth2AuthorizedClientManager oAuth2AuthorizedClientManager;
+    private static final String OAUTH_2_CLIENT = "keycloak";
 
     public AuthController(ClientRegistrationRepository repository,
-                          OAuth2AuthorizedClientService clientService, WebClient webClient) {
+                          OAuth2AuthorizedClientService clientService,
+                          WebClient webClient, OAuth2AuthorizedClientManager oAuth2AuthorizedClientManager) {
         this.webClient = webClient;
         this.repository = repository;
         this.clientService = clientService;
+        this.oAuth2AuthorizedClientManager = oAuth2AuthorizedClientManager;
     }
 
     @GetMapping("/")
-    public Map<String, Object> echo(@RegisteredOAuth2AuthorizedClient("local") OAuth2AuthorizedClient authorizedClient) {
-        final String wiremockResponse = webClient.get()
-                .uri("http://localhost:9090/echo")
+    public Map<String, Object> echo(@RegisteredOAuth2AuthorizedClient(OAUTH_2_CLIENT) OAuth2AuthorizedClient authorizedClient) {
+        final Map<String,Object> wiremockResponse = webClient.get()
+                .uri("https://dummyjson.com/todos/1")
                 .attributes(oauth2AuthorizedClient(authorizedClient))
                 .retrieve()
-                .bodyToMono(String.class)
+                .bodyToMono(Map.class)
                 .block();
-        Objects.requireNonNull(authorizedClient, "no google");
+        Objects.requireNonNull(authorizedClient, String.format("no authorized client found for %s", OAUTH_2_CLIENT));
         return Map.of(
                 "greetings", "hello there how are you????",
                 "tokenResponse", authorizedClient.getAccessToken(),
@@ -54,13 +60,16 @@ public class AuthController {
 
     @GetMapping("/clients")
     public Map<String, String> clients() {
-        final ClientRegistration client = repository.findByRegistrationId("google");
-        final OAuth2AuthorizedClient authorizedClient = clientService.loadAuthorizedClient("google", "no-name");
-        logger.info("authorized client: {}", authorizedClient.getAccessToken());
+        final ClientRegistration registration = repository.findByRegistrationId(OAUTH_2_CLIENT);
+        final OAuth2AuthorizeRequest request = OAuth2AuthorizeRequest
+                .withClientRegistrationId(registration.getRegistrationId())
+                .principal("roshane@developer.com")
+                .build();
+        final OAuth2AuthorizedClient authorizedClient = oAuth2AuthorizedClientManager
+                .authorize(request);
         return Map.of(
-                "client_id", client.getClientId(),
-                "clientName", client.getClientName()
+                "token", authorizedClient.getAccessToken().getTokenValue(),
+                "principal", authorizedClient.getPrincipalName()
         );
-
     }
 }
