@@ -1,12 +1,13 @@
 package com.example.demo;
 
 import com.opencsv.bean.CsvBindByName;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public class ResaleFlatPrice {
     @CsvBindByName(column = "month")
-//    @CsvBindAndJoinByName(column = "month", elementType = YearMonth.class)
     private String yearMonth;
     @CsvBindByName(column = "town")
     private String town;
@@ -115,6 +116,25 @@ public class ResaleFlatPrice {
 
     public void setResalePrice(BigDecimal resalePrice) {
         this.resalePrice = resalePrice;
+    }
+
+    public boolean isValid() {
+        return List.of(yearMonth,
+                        town,
+                        flatType,
+                        block,
+                        streetName,
+                        storeyRange,
+                        floorArea,
+                        flatMode,
+                        leaseCommenceDate,
+                        remainingLease,
+                        resalePrice)
+                .stream()
+                .map(it -> StringUtils.hasText(it.toString()))
+                .filter(it -> !it)
+                .findFirst()
+                .orElse(true);
     }
 
     @Override
