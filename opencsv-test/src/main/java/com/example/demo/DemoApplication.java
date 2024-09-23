@@ -1,6 +1,7 @@
 package com.example.demo;
 
 import com.opencsv.bean.CsvToBeanBuilder;
+import lombok.extern.slf4j.Slf4j;
 import org.postgresql.PGConnection;
 import org.postgresql.copy.CopyIn;
 import org.postgresql.copy.CopyManager;
@@ -9,12 +10,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.codec.multipart.FilePart;
+import org.springframework.stereotype.Controller;
 import org.springframework.util.StopWatch;
 import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.multipart.MultipartFile;
+import reactor.core.publisher.Mono;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -22,7 +26,6 @@ import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -64,65 +67,77 @@ public class DemoApplication {
     record CsvUploadResponse(String message) {
     }
 
-    @RestController
-    static class DummyController {
+    @Slf4j
+    @Controller
+    public static class CsvController {
 
-        @PostMapping(value = "/entity", produces = MediaType.TEXT_PLAIN_VALUE)
-        ResponseEntity<String> rootEntity(@RequestBody Root root) {
-            if (root instanceof TypeA a) {
-                return ResponseEntity.ok(a.getClass().getCanonicalName());
-            }
-            if (root instanceof TypeB b) {
-                return ResponseEntity.ok(b.getClass().getCanonicalName());
-            }
-            return ResponseEntity.internalServerError().body("unable to resolve");
+        @PostMapping(value = "/dataset")
+        Mono<ResponseEntity<String>> rootEntity(@RequestPart("file") FilePart file) {
+            log.info("received FilePart: {}", file.filename());
+            file.content()
+                    .bufferUntil(it -> {
+                        try {
+                            byte aByte = it.getByte(it.readableByteCount() - 1);
+
+                            log.info("Reading byte");
+                            return true;
+                        } catch (Exception ex) {
+                            throw new RuntimeException(ex);
+                        }
+                    })
+            return Mono.just(ResponseEntity.ok("done: %s".formatted(file.filename())));
+        }
+
+        private String processCsvFileUpload(MultipartFile file) {
+            log.info("processing csv file: {}, size: {}bytes", file.getOriginalFilename(), file.getSize());
+            return "done";
         }
 
     }
 
-    @RestController
+    //    @RestController
     static class HomeController {
 
         private static final Configuration configuration = new Configuration();
 
-        @GetMapping("/")
-        ResponseEntity<Map<String, String>> home() {
-            return ResponseEntity.ok(Map.of("message", "hello work mint linux rocks"));
-        }
-
-        @PostMapping(value = "/dataset", produces = MediaType.TEXT_PLAIN_VALUE)
-        ResponseEntity<String> uploadCsv(@RequestParam("file") MultipartFile file,
-                                         @RequestParam(value = "useStream", defaultValue = "false", required = false) Boolean useStream) {
-            logger.info("received file: {}, size: {}", file.getOriginalFilename(), file.getSize());
-            try {
-                var response = useStream ? processStream(file) : process(file);
-                return ResponseEntity.ok(response.toString());
-            } catch (Exception ex) {
-                logger.error("Error", ex);
-                return ResponseEntity.internalServerError()
-                        .body(new CsvUploadResponse(ex.getMessage()).toString());
-            }
-        }
-
-        @PostMapping(value = "/v2/dataset", produces = MediaType.TEXT_PLAIN_VALUE)
-        ResponseEntity<String> uploadCsvV2(@RequestParam("file") MultipartFile file) {
-            logger.info("received file: {}, size: {}", file.getOriginalFilename(), file.getSize());
-            try {
-                StopWatch watch = new StopWatch();
-                watch.start();
-                validateCsvFile(file);
-                CsvUploadResponse insertResponse = insertCsvStream(file);
-                watch.stop();
-                return ResponseEntity.ok("""
-                        insertResponse: [%s],
-                        totalTimeTaken: [%dms]
-                        """.formatted(insertResponse.message, watch.getTotalTimeMillis()));
-            } catch (Exception ex) {
-                logger.error("Error", ex);
-                return ResponseEntity.internalServerError()
-                        .body(new CsvUploadResponse(ex.getMessage()).toString());
-            }
-        }
+//        @GetMapping("/")
+//        ResponseEntity<Map<String, String>> home() {
+//            return ResponseEntity.ok(Map.of("message", "hello work mint linux rocks"));
+//        }
+//
+//        @PostMapping(value = "/dataset", produces = MediaType.TEXT_PLAIN_VALUE)
+//        ResponseEntity<String> uploadCsv(@RequestParam("file") MultipartFile file,
+//                                         @RequestParam(value = "useStream", defaultValue = "false", required = false) Boolean useStream) {
+//            logger.info("received file: {}, size: {}", file.getOriginalFilename(), file.getSize());
+//            try {
+//                var response = useStream ? processStream(file) : process(file);
+//                return ResponseEntity.ok(response.toString());
+//            } catch (Exception ex) {
+//                logger.error("Error", ex);
+//                return ResponseEntity.internalServerError()
+//                        .body(new CsvUploadResponse(ex.getMessage()).toString());
+//            }
+//        }
+//
+//        @PostMapping(value = "/v2/dataset", produces = MediaType.TEXT_PLAIN_VALUE)
+//        ResponseEntity<String> uploadCsvV2(@RequestParam("file") MultipartFile file) {
+//            logger.info("received file: {}, size: {}", file.getOriginalFilename(), file.getSize());
+//            try {
+//                StopWatch watch = new StopWatch();
+//                watch.start();
+//                validateCsvFile(file);
+//                CsvUploadResponse insertResponse = insertCsvStream(file);
+//                watch.stop();
+//                return ResponseEntity.ok("""
+//                        insertResponse: [%s],
+//                        totalTimeTaken: [%dms]
+//                        """.formatted(insertResponse.message, watch.getTotalTimeMillis()));
+//            } catch (Exception ex) {
+//                logger.error("Error", ex);
+//                return ResponseEntity.internalServerError()
+//                        .body(new CsvUploadResponse(ex.getMessage()).toString());
+//            }
+//        }
 
         private static CsvUploadResponse process(MultipartFile file) throws Exception {
             StopWatch stopWatchA = new StopWatch(UUID.randomUUID().toString());
