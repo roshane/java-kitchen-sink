@@ -11,11 +11,11 @@
     <description>mybatis mysql with redis cache</description>
 
     <properties>
-        <java.version>11</java.version>
-        <mybatis.version>2.1.4</mybatis.version>
+        <java.version>21</java.version>
+        <mybatis.version>3.0.3</mybatis.version>
         <mysql-connector-java.version>8.0.23</mysql-connector-java.version>
-        <commons-csv.version>1.8</commons-csv.version>
-        <redisson.version>3.16.1</redisson.version>
+        <commons-csv.version>1.11.0</commons-csv.version>
+        <redisson.version>3.36.0</redisson.version>
     </properties>
 
     <modules>
@@ -33,7 +33,7 @@
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
-                <version>3.0.0</version>
+                <version>3.3.4</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -50,7 +50,7 @@
             <dependency>
                 <groupId>org.junit</groupId>
                 <artifactId>junit-bom</artifactId>
-                <version>5.9.1</version>
+                <version>5.11.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -68,6 +68,7 @@
                 <plugin>
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-maven-plugin</artifactId>
+                    <version>3.3.4</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>

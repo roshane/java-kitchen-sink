@@ -13,21 +13,8 @@
     <version>0.0.1-SNAPSHOT</version>
     <name>opencsv-test</name>
     <description>Opencsv poc application</description>
-    <url/>
-    <licenses>
-        <license/>
-    </licenses>
-    <developers>
-        <developer/>
-    </developers>
-    <scm>
-        <connection/>
-        <developerConnection/>
-        <tag/>
-        <url/>
-    </scm>
     <properties>
-        <java.version>17</java.version>
+        <java.version>21</java.version>
     </properties>
     <dependencies>
         <dependency>
@@ -86,8 +73,6 @@
                     <execution>
                         <goals>
                             <goal>build-info</goal>
-<!--                            <goal>repackage</goal>-->
-<!--                            <goal>build-image-no-fork</goal>-->
                         </goals>
                     </execution>
                 </executions>

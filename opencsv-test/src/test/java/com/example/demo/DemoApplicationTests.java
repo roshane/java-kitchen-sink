@@ -45,7 +45,7 @@ class DemoApplicationTests {
                                 .content("""
                                         {
                                             "name": "A",
-                                            "specificTypeA": "AA"
+                                            "id": 1
                                         }
                                         """)
                                 .contentType(MediaType.APPLICATION_JSON)
@@ -83,7 +83,10 @@ class DemoApplicationTests {
                         """
                                 {
                                     "name": "B",
-                                    "id": 2
+                                    "id": 2,
+                                    "entity": {
+                                        "name" : "entity-b"
+                                    }
                                 }""".stripIndent(),
                         TypeB.class.getCanonicalName()
                 )
