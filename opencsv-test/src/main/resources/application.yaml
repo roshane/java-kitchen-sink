@@ -1,0 +1,31 @@
+spring:
+  application.name: opencsv-test
+  servlet:
+    multipart.max-file-size: -1
+    multipart.max-request-size: -1
+
+logging:
+  level:
+    root: info
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  metrics:
+    tags:
+      application_name: ${spring.application.name}
+      host_name: ${HOSTNAME}
+  otlp:
+    metrics:
+      export:
+#        url: http://0:4318/v1/metrics
+        url: http://otel-collector:4318/v1/metrics
+#        headers:
+#          x-app: ${spring.application.name}
+        step: 5s
+        resourceAttributes:
+          host_name: ${HOSTNAME}
+          application_name: ${spring.application.name}
+          instance: ${spring-application.name}-${random.uuid}

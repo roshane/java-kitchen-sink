@@ -1,6 +1,5 @@
 package com.example.demo;
 
-import com.opencsv.bean.CsvToBeanBuilder;
 import org.postgresql.PGConnection;
 import org.postgresql.copy.CopyIn;
 import org.postgresql.copy.CopyManager;
@@ -9,24 +8,24 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
 import org.springframework.util.StopWatch;
-import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import java.io.BufferedReader;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.Objects;
+import java.util.function.Predicate;
 
 @SpringBootApplication
 public class DemoApplication {
@@ -52,267 +51,118 @@ public class DemoApplication {
 //            source.setServerName("localhost");
         }
 
-        public <R> R withConnection(Function<Connection, R> consumer) {
+        public <R> R withConnection(ThrowableFunction<Connection, R> consumer) {
             try (Connection connection = source.getConnection()) {
                 return consumer.apply(connection);
             } catch (Exception ex) {
+                logger.error("Error", ex);
                 throw new RuntimeException(ex);
             }
         }
     }
 
-    record CsvUploadResponse(String message) {
-    }
+    @Controller
+    public static class CsvController {
 
-    @RestController
-    static class DummyController {
-
-        @PostMapping(value = "/entity", produces = MediaType.TEXT_PLAIN_VALUE)
-        ResponseEntity<String> rootEntity(@RequestBody Root root) {
-            if (root instanceof TypeA a) {
-                return ResponseEntity.ok(a.getClass().getCanonicalName());
-            }
-            if (root instanceof TypeB b) {
-                return ResponseEntity.ok(b.getClass().getCanonicalName());
-            }
-            return ResponseEntity.internalServerError().body("unable to resolve");
-        }
-
-    }
-
-    @RestController
-    static class HomeController {
-
+        private static final int csvColumnCount = 11;
+        private static final Predicate<String> isValidCsvLine =
+                it -> it.split(",").length == csvColumnCount;
         private static final Configuration configuration = new Configuration();
 
-        @GetMapping("/")
-        ResponseEntity<Map<String, String>> home() {
-            return ResponseEntity.ok(Map.of("message", "hello work mint linux rocks"));
-        }
-
-        @PostMapping(value = "/dataset", produces = MediaType.TEXT_PLAIN_VALUE)
-        ResponseEntity<String> uploadCsv(@RequestParam("file") MultipartFile file,
-                                         @RequestParam(value = "useStream", defaultValue = "false", required = false) Boolean useStream) {
-            logger.info("received file: {}, size: {}", file.getOriginalFilename(), file.getSize());
-            try {
-                var response = useStream ? processStream(file) : process(file);
-                return ResponseEntity.ok(response.toString());
+        static {
+            try (InputStream stream = Objects.requireNonNull(CsvController.class.getClassLoader()
+                    .getResource("postgres.sql")).openStream()) {
+                logger.info("Initializing the database");
+                String initSql = new String(stream.readAllBytes());
+                configuration.withConnection(connection -> {
+                    Statement statement = connection.createStatement();
+                    boolean execute = statement.execute(initSql);
+                    logger.info("executed initialization script: {}", execute);
+                    statement.close();
+                    return execute;
+                });
             } catch (Exception ex) {
-                logger.error("Error", ex);
-                return ResponseEntity.internalServerError()
-                        .body(new CsvUploadResponse(ex.getMessage()).toString());
-            }
-        }
-
-        @PostMapping(value = "/v2/dataset", produces = MediaType.TEXT_PLAIN_VALUE)
-        ResponseEntity<String> uploadCsvV2(@RequestParam("file") MultipartFile file) {
-            logger.info("received file: {}, size: {}", file.getOriginalFilename(), file.getSize());
-            try {
-                StopWatch watch = new StopWatch();
-                watch.start();
-                validateCsvFile(file);
-                CsvUploadResponse insertResponse = insertCsvStream(file);
-                watch.stop();
-                return ResponseEntity.ok("""
-                        insertResponse: [%s],
-                        totalTimeTaken: [%dms]
-                        """.formatted(insertResponse.message, watch.getTotalTimeMillis()));
-            } catch (Exception ex) {
-                logger.error("Error", ex);
-                return ResponseEntity.internalServerError()
-                        .body(new CsvUploadResponse(ex.getMessage()).toString());
-            }
-        }
-
-        private static CsvUploadResponse process(MultipartFile file) throws Exception {
-            StopWatch stopWatchA = new StopWatch(UUID.randomUUID().toString());
-            stopWatchA.start();
-            var resaleFlatPriceList = new CsvToBeanBuilder<ResaleFlatPrice>(new InputStreamReader(file.getInputStream()))
-                    .withType(ResaleFlatPrice.class)
-                    .build()
-                    .parse();
-            stopWatchA.stop();
-            long timeTaken = stopWatchA.getTotalTimeMillis();
-
-            StopWatch stopWatchB = new StopWatch(UUID.randomUUID().toString());
-            stopWatchB.start();
-            resaleFlatPriceList.forEach(it -> logger.debug("item: {}", it));
-            stopWatchB.stop();
-            long timeToPrint = stopWatchB.getTotalTimeMillis();
-            return new CsvUploadResponse(
-                    """
-                            successfully processed: %d of lines,
-                            time taken: %d ms,
-                            time taken to print lines: %d ms
-                            """.strip()
-                            .formatted(
-                                    resaleFlatPriceList.size(),
-                                    timeTaken,
-                                    timeToPrint
-                            )
-            );
-        }
-
-        private static CsvUploadResponse processStream(MultipartFile file) throws Exception {
-            StopWatch stopWatchA = new StopWatch(UUID.randomUUID().toString());
-            stopWatchA.start();
-            var count = new AtomicInteger(0);
-            new CsvToBeanBuilder<ResaleFlatPrice>(new InputStreamReader(file.getInputStream()))
-                    .withType(ResaleFlatPrice.class)
-                    .build()
-                    .stream()
-                    .forEach(it -> {
-                        count.incrementAndGet();
-                        logger.debug("item: {}", it);
-                    });
-            stopWatchA.stop();
-            long timeTaken = stopWatchA.getTotalTimeMillis();
-
-//            resaleFlatPriceList.forEach(it -> logger.info("item: {}", it));
-            return new CsvUploadResponse(
-                    """
-                            successfully processed: %d of lines,
-                            total time taken: %d ms,
-                            """.strip()
-                            .formatted(
-                                    count.get(),
-                                    timeTaken
-                            )
-            );
-        }
-
-        private static CsvUploadResponse processCustomStream(MultipartFile file) throws Exception {
-            StopWatch stopWatchA = new StopWatch(UUID.randomUUID().toString());
-            stopWatchA.start();
-            var numOfLines = new AtomicInteger(0);
-            try (
-                    InputStream inputStream = file.getInputStream();
-                    BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream))
-            ) {
-
-                bufferedReader.lines()
-                        .map(HomeController::mapCsvStringToBean)
-                        .forEach(it -> {
-                            numOfLines.incrementAndGet();
-                            logger.debug("item: {}", it);
-                        });
-            }
-            stopWatchA.stop();
-            long timeTaken = stopWatchA.getTotalTimeMillis();
-            return new CsvUploadResponse(
-                    """
-                            successfully processed: %d of lines,
-                            total time taken: %d ms,
-                            """.strip()
-                            .formatted(
-                                    numOfLines.get(),
-                                    timeTaken
-                            )
-            );
-        }
-
-        private static ResaleFlatPrice mapCsvStringToBean(String csvString) {
-            if (!StringUtils.hasText(csvString)) {
-                throw new RuntimeException("Invalid csv string: %s".formatted(csvString));
-            }
-            String[] tokens = csvString.split(",");
-            ResaleFlatPrice resaleFlatPrice = new ResaleFlatPrice();
-            resaleFlatPrice.setYearMonth(tokens[0]);
-            resaleFlatPrice.setTown(tokens[1]);
-            resaleFlatPrice.setFlatType(tokens[2]);
-            resaleFlatPrice.setBlock(tokens[3]);
-            resaleFlatPrice.setStreetName(tokens[4]);
-            resaleFlatPrice.setStoreyRange(tokens[5]);
-            resaleFlatPrice.setFloorArea(new BigDecimal(tokens[6]));
-            resaleFlatPrice.setFlatMode(tokens[7]);
-            resaleFlatPrice.setLeaseCommenceDate(Integer.parseInt(tokens[8]));
-            resaleFlatPrice.setRemainingLease(tokens[9]);
-            resaleFlatPrice.setResalePrice(new BigDecimal(tokens[10]));
-            return resaleFlatPrice;
-        }
-
-        private static void validateCsvFile(MultipartFile file) {
-            logger.info("validateCsvFile started ");
-            StopWatch watch = new StopWatch(UUID.randomUUID().toString());
-            watch.start();
-            try (
-                    InputStream inputStream = file.getInputStream();
-                    InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
-                    BufferedReader bufferedReader = new BufferedReader(inputStreamReader)
-            ) {
-                Optional<ResaleFlatPrice> maybeInvalid = bufferedReader.lines()
-                        .map(HomeController::mapCsvStringToBean)
-                        .filter(it -> !it.isValid())
-                        .findFirst();
-                if (maybeInvalid.isPresent()) {
-                    throw new RuntimeException("Invalid ResaleFlatPrice: {%s}".formatted(maybeInvalid.get()));
-                }
-
-            } catch (Exception ex) {
-                logger.error("Error", ex);
+                logger.error("Error initializing DB", ex);
                 throw new RuntimeException(ex);
             }
-            watch.stop();
-            long timeTaken = watch.getTotalTimeMillis();
-            logger.info("validateCsvFile time taken: {}ms", timeTaken);
         }
 
-        private static CsvUploadResponse insertCsvStream(MultipartFile file) {
+        @GetMapping("/ping")
+        Mono<ResponseEntity<String>> ping() {
+            return Mono.just(ResponseEntity.ok("pong"));
+        }
+
+        @PostMapping(value = "/dataset/resale_flat_price")
+        Mono<ResponseEntity<String>> rootEntity(@RequestBody Flux<String> stream) {
+            return persistCsvData(stream)
+                    .map(ResponseEntity::ok);
+        }
+
+        @DeleteMapping("/dataset/resale_flat_price")
+        Mono<ResponseEntity<Boolean>> deleteEntries() {
+            return Mono.fromCallable(() -> configuration.withConnection(connection -> {
+                Statement statement = connection.createStatement();
+                boolean execute = statement.execute("delete from resale_flat_price");
+                statement.close();
+                return execute;
+            })).map(ResponseEntity::ok);
+        }
+
+        @GetMapping("/dataset/resale_flat_price/size")
+        Mono<ResponseEntity<Integer>> countResaleFlatPriceRecords() {
+            return configuration.withConnection(conn -> {
+                return Mono.fromCallable(() -> {
+                    Statement statement = conn.createStatement();
+                    ResultSet resultSet = statement.executeQuery("select count(*) as count from resale_flat_price");
+                    int result = 0;
+                    while (resultSet.next()) {
+                        result = resultSet.getInt("cou");
+                    }
+                    resultSet.close();
+                    statement.close();
+                    return ResponseEntity.ok(result);
+                });
+            });
+        }
+
+        private Mono<String> persistCsvData(Flux<String> stream) {
             String sql = """
                      COPY resale_flat_price(month, town, flat_type, block, street_name, storey_range, floor_area_sqm, flat_model, lease_commence_date, remaining_lease, resale_price)
                      FROM STDIN
                      WITH (FORMAT csv)
                     """;
-            StopWatch stopWatchA = new StopWatch(UUID.randomUUID().toString());
-            stopWatchA.start();
-            return configuration.withConnection(conn -> {
-                try {
-                    try (
-                            InputStream inputStream = file.getInputStream();
-                            BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream))
-                    ) {
-                        PGConnection pgConnection = conn.unwrap(PGConnection.class);
-                        CopyManager copyAPI = pgConnection.getCopyAPI();
-                        CopyIn copyIn = copyAPI.copyIn(sql);
-                        bufferedReader.lines()
-                                .forEach(csv -> {
-                                    byte[] buf = (csv + "\n").getBytes(StandardCharsets.UTF_8);
-                                    try {
-                                        copyIn.writeToCopy(buf, 0, buf.length);
-                                    } catch (Exception ex) {
-                                        logger.error("Error", ex);
-                                        throw new RuntimeException(ex);
-                                    }
-                                });
-                        long updatedRows = copyIn.endCopy();
-                        long handledRowCount = copyIn.getHandledRowCount();
-                        stopWatchA.stop();
-                        logger.info("UpdatedRows: {}, handledRowCount: {}, timeTaken: {}ms",
-                                updatedRows, handledRowCount, stopWatchA.getTotalTimeMillis());
-                        return new CsvUploadResponse(
-                                """
-                                        updated rows: %d,
-                                        handled rows: %d,
-                                        total time taken: %d ms,
-                                        """.strip()
-                                        .formatted(
-                                                updatedRows,
-                                                handledRowCount,
-                                                stopWatchA.getTotalTimeMillis()
-                                        )
-                        );
-                    } catch (Exception ex) {
-                        throw new RuntimeException(ex);
-                    }
-
-                } catch (Exception ex) {
-                    logger.error("Error:", ex);
-                    return new CsvUploadResponse(ex.getMessage());
-                }
-
+            return configuration.withConnection(connection -> {
+                StopWatch stopWatchA = new StopWatch();
+                stopWatchA.start();
+                PGConnection pgConnection = connection.unwrap(PGConnection.class);
+                CopyManager copyAPI = pgConnection.getCopyAPI();
+                CopyIn copyIn = copyAPI.copyIn(sql);
+                Mono<String> result = stream
+                        .filter(isValidCsvLine)
+                        .map(it -> {
+                            byte[] buf = (it + "\n").getBytes(StandardCharsets.UTF_8);
+                            try {
+                                copyIn.writeToCopy(buf, 0, buf.length);
+                                return it;
+                            } catch (SQLException ex) {
+                                logger.error("SQLError", ex);
+                                throw new RuntimeException(ex);
+                            }
+                        }).last()
+                        .map("lastLine processed: [%s]"::formatted)
+                        .doOnSuccess(ignore -> {
+                            try {
+                                long linesProcessed = copyIn.endCopy();
+                                logger.info("linesProcessed: {}", linesProcessed);
+                                stopWatchA.stop();
+                                logger.info("timeTaken: {}ms", stopWatchA.getTotalTimeMillis());
+                            } catch (SQLException e) {
+                                throw new RuntimeException(e);
+                            }
+                        });
+                return result;
             });
         }
     }
-
 
 }
