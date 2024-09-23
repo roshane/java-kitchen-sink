@@ -13,10 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StopWatch;
 import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
@@ -65,6 +62,22 @@ public class DemoApplication {
     }
 
     record CsvUploadResponse(String message) {
+    }
+
+    @RestController
+    static class DummyController {
+
+        @PostMapping(value = "/entity", produces = MediaType.TEXT_PLAIN_VALUE)
+        ResponseEntity<String> rootEntity(@RequestBody Root root) {
+            if (root instanceof TypeA a) {
+                return ResponseEntity.ok(a.getClass().getCanonicalName());
+            }
+            if (root instanceof TypeB b) {
+                return ResponseEntity.ok(b.getClass().getCanonicalName());
+            }
+            return ResponseEntity.internalServerError().body("unable to resolve");
+        }
+
     }
 
     @RestController
