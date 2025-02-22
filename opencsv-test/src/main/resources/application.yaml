@@ -4,9 +4,16 @@ spring:
     multipart.max-file-size: -1
     multipart.max-request-size: -1
 
-logging:
-  level:
-    root: info
+metrics.instance-id: ${spring.application.name}-${random.int(10)}
+postgres:
+  host: "localhost"
+  data-source-name: "opencsv-test-spring-app"
+  db-name: "admin"
+  max-connections: 2
+  user: "admin"
+  password: "password"
+  ssl: false
+  application-name: "opencsv-test-spring-app"
 
 management:
   endpoints:
@@ -15,8 +22,10 @@ management:
         include: "*"
   metrics:
     tags:
-      application_name: ${spring.application.name}
-      host_name: ${HOSTNAME}
+      application: ${spring.application.name}
+      instance: ${metrics.instance-id}
+      host: ${HOSTNAME}
+      namespace: default
   otlp:
     metrics:
       export:
@@ -26,6 +35,7 @@ management:
 #          x-app: ${spring.application.name}
         step: 5s
         resourceAttributes:
-          host_name: ${HOSTNAME}
-          application_name: ${spring.application.name}
-          instance: ${spring-application.name}-${random.uuid}
+          host: ${HOSTNAME}
+          application: ${spring.application.name}
+          instance:  ${metrics.instance-id}
+          namespace: default

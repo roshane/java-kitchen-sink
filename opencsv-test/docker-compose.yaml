@@ -1,23 +1,23 @@
 services:
-  opencsv-test:
-    image: opencsv-test:latest
-    mem_limit: 256m
-    cpu_shares: 1024
-    networks:
-      - application
-    depends_on:
-      - postgres
-    ports:
-      - 8080:8080
+#  opencsv-test:
+#    image: opencsv-test:latest
+#    mem_limit: 256m
+#    cpu_shares: 1024
+#    networks:
+#      - application
+#    depends_on:
+#      - postgres
+#    ports:
+#      - 8080:8080
   postgres:
     image: postgres:12.20-alpine3.20
     mem_limit: 512m
     cpu_shares: 1024
     restart: always
     networks:
-      - application
+      - developer-net
     ports:
-      - 5432:5432  
+      - 5432:5432
     environment:
       POSTGRES_PASSWORD: password
       POSTGRES_USER: admin
@@ -36,6 +36,14 @@ services:
 #      PGADMIN_DEFAULT_PASSWORD: password
 
 networks:
-  application:
-    name: developer-net
+  developer-net:
     external: true
+
+#volumes:
+#  postgres_data:
+#    driver: local
+#    driver_opts:
+#      type: none
+#      device: /home/roshane/IdeaProjects/docker-compose/open-telemetry/volume/postgresql/data
+#  developer-volume:
+#    external: true
