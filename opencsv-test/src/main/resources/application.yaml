@@ -6,7 +6,7 @@ spring:
 
 metrics.instance-id: ${spring.application.name}-${random.int(10)}
 postgres:
-  host: "localhost"
+  host: "${POSTGRES_HOST:localhost}"
   data-source-name: "opencsv-test-spring-app"
   db-name: "admin"
   max-connections: 2

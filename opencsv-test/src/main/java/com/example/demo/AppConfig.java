@@ -8,6 +8,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+import org.springframework.jdbc.support.JdbcTransactionManager;
+import org.springframework.transaction.ReactiveTransactionManager;
 
 import javax.sql.DataSource;
 import java.util.Properties;
@@ -26,7 +28,7 @@ class AppConfig {
         hikariConfig.setMaximumPoolSize(config.getMaxConnections());
         hikariConfig.setPoolName(config.getApplicationName());
         hikariConfig.setConnectionTimeout(2000);
-        hikariConfig.setLeakDetectionThreshold(2000);
+        hikariConfig.setLeakDetectionThreshold(5000);
         return new HikariDataSource(hikariConfig);
     }
 
@@ -36,7 +38,13 @@ class AppConfig {
     }
 
     @Bean
-    DataSourceTransactionManager transactionManager(DataSource dataSource){
-        return new DataSourceTransactionManager(dataSource);
+    JdbcTransactionManager jdbcTransactionManager(DataSource dataSource){
+        return new JdbcTransactionManager(dataSource);
     }
+
+//    @Bean
+//    DataSourceTransactionManager transactionManager(DataSource dataSource){
+//        return new DataSourceTransactionManager(dataSource);
+//    }
+
 }

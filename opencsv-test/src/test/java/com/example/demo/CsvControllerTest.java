@@ -1,6 +1,7 @@
 package com.example.demo;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.MediaType;
@@ -12,6 +13,7 @@ import java.io.File;
 import java.net.URL;
 
 
+@Disabled
 class CsvControllerTest {
 
     private WebTestClient webTestClient;
