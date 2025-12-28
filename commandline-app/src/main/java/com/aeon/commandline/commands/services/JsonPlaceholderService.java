@@ -10,13 +10,14 @@ import java.util.Map;
 @Service
 public class JsonPlaceholderService {
 
-    private static final RestClient client = RestClient.create();
+  private static final RestClient client = RestClient.create();
 
-    public List<Map<String, String>> todosJson() {
-        return client.get()
-                .uri("https://jsonplaceholder.typicode.com/todos")
-                .retrieve()
-                .body(new ParameterizedTypeReference<List<Map<String, String>>>() {
-                });
-    }
+  public List<Map<String, String>> todosJson() {
+    System.out.println("hello world");
+    return client.get()
+        .uri("https://jsonplaceholder.typicode.com/todos")
+        .retrieve()
+        .body(new ParameterizedTypeReference<List<Map<String, String>>>() {
+        });
+  }
 }
